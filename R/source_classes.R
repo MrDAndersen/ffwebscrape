@@ -1,3 +1,46 @@
+#' Projection Source Object
+#' 
+#' This objects represent the basic set of data needed for defining a projection
+#' source. It is used as superclass for the specific source objects that are 
+#' specific to which type of data is returned. Use link{html_source}, 
+#' link{json_source} and link{xlsx_source} to create a projection source.
+#' 
+#' @field base The base url for the source
+#' @field id_col The name of the column in the \code{player_ids} table that 
+#' refers to the id of the player in the source.
+#' @field league_id This is used for Yahoo sources. Set to the id of the league
+#' that you want to scrape data from
+#' @field api_key The api key associated with the source if applicable
+#' @field get_path A function of \code{season, week, position} which generates 
+#' the url path to scrape data from
+#' @field get_query A function of \code{season, week, position} which generates 
+#' the url query that will be used to scrape data
+#' @field url_positions A function of position that will convert the standard 
+#' position designation \code{QB, RB, WR, TE, K, DST, DL, LB, DB} or others to the 
+#' designation that the site uses
+#' @field min_week The minimum week that the site provide data for
+#' @field max_week The maximum week that the site provide data for
+#' @field season_pos A character vector of position names that the site provide data 
+#' for for season
+#' @field week_pos A character vector of position names that the site provide data 
+#' for for weekly data,
+#' @field stat_cols A named character vector that will convert the site column
+#' names to standard column names.
+#' 
+#' @section Methods:
+#' \describe{
+#'   \item{\code{get_url}}{Function of \code{season, week, position} that will 
+#'   generate the full URL that will be scraped for that season, week and 
+#'   position}
+#'   \item{\code{name_cols}}{Method that will take a table and set the column 
+#'   names as specified in the \code{stat_cols} field}
+#'   \item{\code{set_id}}{Method that will take a table and add the MFL id column 
+#'   with values based on the \link{player_ids} table}
+#' }
+#' @docType class
+#' @family source-class
+#' @keywords internal
+#' @format An R6 class object.
 projection_source <- R6::R6Class(
   "projection_source",
   public = list(
@@ -7,7 +50,6 @@ projection_source <- R6::R6Class(
     api_key = NULL,
     get_path = NULL,
     get_query = NULL,
-    url_type = NULL,
     url_positions = NULL,
     min_week = NULL,
     max_week = NULL,
@@ -96,9 +138,11 @@ projection_source <- R6::R6Class(
       } else if (position %in% c("DL", "LB", "DB", "IDP", "D")){
         rename_cols <- stat_cols[matches("^idp|^site|^games", vars = names(stat_cols))]
       } else {
-        rename_cols <- stat_cols[matches("^pass|^rush|^rec|^fum|^sac|^two|^reg|^ret|^site|^games", vars = names(stat_cols))]
+        rename_cols <- stat_cols[matches("^pass|^rush|^rec|^rxx|^fum|^sac|^two|^reg|^ret|^site|^games", vars = names(stat_cols))]
       }
 
+      # TODO: manage fantasysharks rxx columns based on position
+      
       data_tbl %>%
         rename(!!!rename_cols) %>%
         clean_format() %>%
@@ -117,7 +161,52 @@ projection_source <- R6::R6Class(
   )
 )
 
-
+#' HTML source object
+#' 
+#' This objects represent the basic set of data needed for defining a projection
+#' source with HTML data. It is an extesnsion of the \link{projection_source} 
+#' object with some specific fields and methods related to scraping HTML data.
+#' 
+#' @field table_css A string with a CSS selector identifying the HTML 
+#' \code{<table>} element holding the projection data.
+#' @field pid_css A string with a CSS selector idenfitying the HTML node holding
+#' the player id if available
+#' @field rm_elem A character vector of CSS selectors identifying HTML nodes to
+#' remove for successful scraping of the table. 
+#' @field index If \code{table_css} does not uniquely identify the table, use this
+#' field to identify the index number for the table in the list of nodes. If 
+#' multiple numbers are specified then the tables are ssume to have identical 
+#' number of rows and will be combined with \link{bind_cols}
+#' @field extract_pid A function that will take the HTML node holding the player
+#' id and extract the specific player_id
+#' @field split_cols A list with each element being a list representing input to
+#' either \link{separate} or \link{extract}. Each input element should be in the
+#' format of a function of position to allow for different handling of fields for
+#' different positions. See the \code{projection_sources} object for predefined
+#' sources.
+#' @field recode_cols a list with each element being a list representing names
+#' of columns to be recoded and a named vector for each column holding the recode
+#' values to be used by \link{recode}.
+#' 
+#' @section Methods:
+#' \describe{
+#'   \item{\code{open_session}}{Takes \code{season, week, position} as input and
+#'   and opens a session on the website via the \link{html_session} function after
+#'   determining the URL}
+#'   \item{\code{close_session}}{Closes the session that is currently open}
+#'   \item{\code{get_table}}{Retrieves the table from the session without any 
+#'   spliltting of columns defined in \code{split_cols}, any recoding as defined
+#'   in \code{recode_cols} or any renaming based on \code{stat_cols}}
+#'   \item{\code{scrape}}{Scrapes data from the table specified and wrangles the
+#'   columns based on \code{split_cols}, \code{recode_cols} and \code{stat_cols}}
+#' }
+#' 
+#' @note See \url{https://www.w3schools.com/cssref/css_selectors.asp} for details
+#' on defining CSS selectors
+#' @docType class
+#' @family source-class
+#' @keywords internal
+#' @format An R6 class object.
 html_source <- R6::R6Class(
   "html_source",
   inherit = projection_source,
@@ -318,7 +407,30 @@ html_source <- R6::R6Class(
   private = list(session = NULL)
 )
 
-
+#' JSON source object
+#' 
+#' This objects represent the basic set of data needed for defining a projection
+#' source with JSON data. It is an extesnsion of the \link{projection_source} 
+#' object with some specific fields and methods related to scraping JSON data.
+#' 
+#' @field json_elem String containing the name of the JSON element in the result
+#' that identifies the data
+#' @field stat_elem String containing the name of the stats element in the JSON
+#' result if applicable
+#' @field player_elem Character vector containing the name of the player elements
+#' in the JSON result if applicable
+#' @field player_cols Named character vector used to rename the player columns in
+#' the JSON result if needed.
+#' 
+#' @section Methods:
+#' \describe{
+#'   \item{\code{scrape}}{Scrape the data from the source based on season, week
+#'   and position provided}
+#' }
+#' @docType class
+#' @family source-class
+#' @keywords internal
+#' @format An R6 class object.
 json_source <- R6::R6Class(
   "json_source",
   inherit = projection_source,
@@ -394,6 +506,22 @@ json_source <- R6::R6Class(
   )
 )
 
+
+#' xlsx source object
+#' 
+#' This objects represent the basic set of data needed for defining a projection
+#' source with xlsx data. It is an extesnsion of the \link{projection_source} 
+#' object with some specific fields and methods related to scraping xlsx data.
+#' 
+#' @section Methods:
+#' \describe{
+#'   \item{\code{scrape}}{Scrape the data from the source based on season, week
+#'   and position provided}
+#' }
+#' @docType class
+#' @family source-class
+#' @keywords internal
+#' @format An R6 class object.
 xlsx_source <- R6::R6Class(
   "xlsx_source",
   inherit = projection_source,
