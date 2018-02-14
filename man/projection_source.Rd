@@ -10,8 +10,8 @@ projection_source
 }
 \description{
 This objects represent the basic set of data needed for defining a projection
-source. It is used as superclass for the specific source objects that are 
-specific to which type of data is returned. Use link{html_source}, 
+source. It is used as superclass for the specific source objects that are
+specific to which type of data is returned. Use link{html_source},
 link{json_source} and link{xlsx_source} to create a projection source.
 }
 \section{Fields}{
@@ -19,7 +19,7 @@ link{json_source} and link{xlsx_source} to create a projection source.
 \describe{
 \item{\code{base}}{The base url for the source}
 
-\item{\code{id_col}}{The name of the column in the \code{player_ids} table that 
+\item{\code{id_col}}{The name of the column in the \code{player_ids} table that
 refers to the id of the player in the source.}
 
 \item{\code{league_id}}{This is used for Yahoo sources. Set to the id of the league
@@ -27,24 +27,24 @@ that you want to scrape data from}
 
 \item{\code{api_key}}{The api key associated with the source if applicable}
 
-\item{\code{get_path}}{A function of \code{season, week, position} which generates 
+\item{\code{get_path}}{A function of \code{season, week, position} which generates
 the url path to scrape data from}
 
-\item{\code{get_query}}{A function of \code{season, week, position} which generates 
+\item{\code{get_query}}{A function of \code{season, week, position} which generates
 the url query that will be used to scrape data}
 
-\item{\code{url_positions}}{A function of position that will convert the standard 
-position designation \code{QB, RB, WR, TE, K, DST, DL, LB, DB} or others to the 
+\item{\code{url_positions}}{A function of position that will convert the standard
+position designation \code{QB, RB, WR, TE, K, DST, DL, LB, DB} or others to the
 designation that the site uses}
 
 \item{\code{min_week}}{The minimum week that the site provide data for}
 
 \item{\code{max_week}}{The maximum week that the site provide data for}
 
-\item{\code{season_pos}}{A character vector of position names that the site provide data 
+\item{\code{season_pos}}{A character vector of position names that the site provide data
 for for season}
 
-\item{\code{week_pos}}{A character vector of position names that the site provide data 
+\item{\code{week_pos}}{A character vector of position names that the site provide data
 for for weekly data,}
 
 \item{\code{stat_cols}}{A named character vector that will convert the site column
@@ -54,12 +54,12 @@ names to standard column names.}
 \section{Methods}{
 
 \describe{
-  \item{\code{get_url}}{Function of \code{season, week, position} that will 
-  generate the full URL that will be scraped for that season, week and 
+  \item{\code{get_url}}{Function of \code{season, week, position} that will
+  generate the full URL that will be scraped for that season, week and
   position}
-  \item{\code{name_cols}}{Method that will take a table and set the column 
+  \item{\code{name_cols}}{Method that will take a table and set the column
   names as specified in the \code{stat_cols} field}
-  \item{\code{set_id}}{Method that will take a table and add the MFL id column 
+  \item{\code{set_id}}{Method that will take a table and add the MFL id column
   with values based on the \link{player_ids} table}
 }
 }

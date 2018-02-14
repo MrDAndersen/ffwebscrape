@@ -10,7 +10,7 @@ xlsx_source
 }
 \description{
 This objects represent the basic set of data needed for defining a projection
-source with xlsx data. It is an extesnsion of the \link{projection_source} 
+source with xlsx data. It is an extesnsion of the \link{projection_source}
 object with some specific fields and methods related to scraping xlsx data.
 }
 \section{Methods}{

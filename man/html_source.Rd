@@ -10,13 +10,13 @@ html_source
 }
 \description{
 This objects represent the basic set of data needed for defining a projection
-source with HTML data. It is an extesnsion of the \link{projection_source} 
+source with HTML data. It is an extesnsion of the \link{projection_source}
 object with some specific fields and methods related to scraping HTML data.
 }
 \section{Fields}{
 
 \describe{
-\item{\code{table_css}}{A string with a CSS selector identifying the HTML 
+\item{\code{table_css}}{A string with a CSS selector identifying the HTML
 \code{<table>} element holding the projection data.}
 
 \item{\code{pid_css}}{A string with a CSS selector idenfitying the HTML node holding
@@ -26,8 +26,8 @@ the player id if available}
 remove for successful scraping of the table.}
 
 \item{\code{index}}{If \code{table_css} does not uniquely identify the table, use this
-field to identify the index number for the table in the list of nodes. If 
-multiple numbers are specified then the tables are ssume to have identical 
+field to identify the index number for the table in the list of nodes. If
+multiple numbers are specified then the tables are ssume to have identical
 number of rows and will be combined with \link{bind_cols}}
 
 \item{\code{extract_pid}}{A function that will take the HTML node holding the player
@@ -55,7 +55,7 @@ on defining CSS selectors
   and opens a session on the website via the \link{html_session} function after
   determining the URL}
   \item{\code{close_session}}{Closes the session that is currently open}
-  \item{\code{get_table}}{Retrieves the table from the session without any 
+  \item{\code{get_table}}{Retrieves the table from the session without any
   spliltting of columns defined in \code{split_cols}, any recoding as defined
   in \code{recode_cols} or any renaming based on \code{stat_cols}}
   \item{\code{scrape}}{Scrapes data from the table specified and wrangles the
