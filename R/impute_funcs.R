@@ -13,10 +13,36 @@ impute_na_off <- function(tbl){
   type_col <- c(pass = "pass_yds", rush = "rush_yds", rec = "rec_yds")
   stat_type <- names(type_col)[which(type_col %in% names(tbl))]
 
+  if("reg_tds" %in% names(tbl)){
+    rrr_tds <- tbl %>%
+      mutate(reg_tds = ifelse(is.na(reg_tds), rec_tds + rush_tds, reg_tds)) %>%
+      val_from_rate(rec_tds, reg_tds) %>%
+      val_from_calc(tbl, rush_tds, reg_tds)
+
+    tbl <- tbl %>% select(-reg_tds) %>%
+      rename(ru_tds = rush_tds, re_tds = rec_tds) %>%
+      left_join(rrr_tds, by = c("id", "data_src")) %>%
+        mutate(rush_tds = ifelse(is.na(rush_tds), ru_tds, rush_tds),
+               rec_tds = ifelse(is.na(rec_tds), re_tds, rec_tds)) %>%
+        select(-ru_tds, re_tds)
+
+    if(stat_type == "rec")
+      tbl <- tbl %>% select(-rush_tds, -reg_tds)
+
+    if(stat_type == "rush")
+      tbl <- tbl %>% select(-rec_tds, -reg_tds)
+  }
+
   names(tbl) <- gsub("(pass|rush|rec)_(.+)", "\\2", names(tbl))
 
-  if("rec" %in% names(tbl))
-    tbl <- rename(tbl, att = rec)
+  rec_targets <-  "tgt" %in% names(tbl)
+  if("rec" %in% names(tbl)){
+    tbl <- rename(tbl, comp = rec)
+    if(rec_targets)
+      tbl <- rename(tbl, att = tgt)
+    else
+      tbl <- mutate(tbl, att = comp)
+  }
 
   if("avg" %in% names(tbl)){
     tbl$att <- calc_touch_from_avg(tbl$yds, tbl$avg, tbl$att)
@@ -24,13 +50,21 @@ impute_na_off <- function(tbl){
 
   out_df <- tbl %>% val_from_rate(yds, att) %>% miss_rate(tbl, yds, att)
 
-  if("comp" %in% names(tbl)){
+
+
+  if("comp" %in% names(tbl) & stat_type == "pass"){
     out_df <- out_df %>% val_from_calc(tbl, comp, att) %>%
       val_from_calc(tbl, int, att) %>%
-      val_from_calc(tbl, tds, comp)
+      val_from_calc(tbl, tds, comp) %>%
+      mutate(inc = att - comp, comp_pct = ifelse(att == 0, 0, comp / att))
+  } else if("comp" %in% names(tbl) & stat_type == "rec"){
+    out_df <- out_df %>% val_from_calc(tbl, comp, att) %>%
+      val_from_calc(tbl, tds, att)
   } else {
     out_df <- out_df %>% val_from_calc(tbl, tds, att)
   }
+
+  out_df <- mutate(out_df, avg = ifelse(att == 0, 0, yds / att))
 
   if(any(grepl("[0-9]{2,}_tds$", names(tbl)))){
     out_df <- out_df %>%
@@ -54,12 +88,22 @@ impute_na_off <- function(tbl){
 
  id_pt <- paste(stat_type, "id", sep = "_")
  src_pt <- paste(stat_type, "data_src", sep = "_")
-  names(out_df) <- paste(stat_type, names(out_df), sep = "_") %>%
-    gsub(id_pt, "id", ., fixed = TRUE) %>%
-    gsub(src_pt, "data_src", ., fixed = TRUE) %>%
-    gsub("rec_att", "rec", ., fixed = TRUE)
+ names(out_df) <- paste(stat_type, names(out_df), sep = "_") %>%
+   gsub(id_pt, "id", ., fixed = TRUE) %>%
+   gsub(src_pt, "data_src", ., fixed = TRUE) %>%
+   gsub("rec_att", "rec", ., fixed = TRUE) %>%
+   gsub("rec_comp", "rec_tgt", ., fixed = TRUE)
 
-  return(out_df)
+ if(!rec_targets & "rec_tgt" %in% names(out_df))
+   out_df <- select(out_df, -rec_tgt)
+ else if (rec_targets & "rec_tgt" %in% names(out_df)){
+   out_df <- mutate(out_df, rec_yds_tgt = rec_yds / rec_tgt)
+ }
+
+ check_col <- function(x){is.na(x) | x ==0}
+ tbl_cols <- select(out_df, -id, - data_src) %>% mutate_all(check_col) %>% rowSums()
+
+  return(out_df[tbl_cols < ncol(select(out_df, -id, - data_src)),])
 }
 
 
@@ -87,17 +131,17 @@ kick_impute <- function(kick_tbl){
   if(all(kick_dist %in% kick_cols)){
     if(any(kick_cols == "fg_0039")){
       kick_tbl <- kick_tbl %>%
-        mutate(fg_tot = sum_columns(kick_tbl, fg_0019, fg_2029, fg_0039, fg_3039, fg_4049, fg_50),
+        mutate(fg_tot = sum_columns(kick_tbl, fg_0019, fg_2029, fg_0039, fg_3039, fg_4049, fg_50, na.rm = TRUE),
                fg = ifelse(!is.na(fg_tot) & is.na(fg), fg_tot, fg))
     } else {
       kick_tbl <- kick_tbl %>%
-        mutate(fg_tot = sum_columns(kick_tbl, fg_0019, fg_2029, fg_3039, fg_4049, fg_50),
+        mutate(fg_tot = sum_columns(kick_tbl, fg_0019, fg_2029, fg_3039, fg_4049, fg_50, na.rm = TRUE),
                fg = ifelse(!is.na(fg_tot) & is.na(fg), fg_tot, fg))
     }
     kick_tbl <- kick_tbl %>% select(-fg_tot)
   } else if(all(c("fg_0039", "fg_4049", "fg_50") %in% kick_cols)){
     kick_tbl <- kick_tbl %>%
-      mutate(fg_tot = sum_columns(kick_tbl, fg_0039, fg_4049, fg_50),
+      mutate(fg_tot = sum_columns(kick_tbl, fg_0039, fg_4049, fg_50, na.rm = TRUE),
              fg = ifelse(!is.na(fg_tot) & is.na(fg), fg_tot, fg)) %>%
       select(-fg_tot)
   }
@@ -121,16 +165,40 @@ kick_impute <- function(kick_tbl){
 
   # Imputing values for field goals by distance.
   if(all(kick_dist %in% kick_cols)){
+      if(any(kick_cols == "fg_0029")){
+      kick_tbl <- kick_tbl %>%
+        mutate(tot_0029 = sum_columns(kick_tbl, fg_0019, fg_2029),
+               fg_0029 = ifelse(!is.na(tot_0029) & is.na(fg_0029), tot_0029, fg_0029)) %>%
+        select(-tot_0029)
+
+      kicking <- kicking %>% inner_join(select(kick_tbl, id, data_src, fg_0029), by = c("id", "data_src")) %>%
+        dist_rate(kick_tbl, fg_0029, fg_0019, fg_2029) %>% select(-fg_0029)
+
+      kick_tbl <- select(kick_tbl, -fg_0019, -fg_2029) %>%
+        inner_join(select(kicking, id, data_src, fg_0019, fg_2029), by = c("id", "data_src"))
+
+      kicking <- kicking %>% select(-fg_0019, -fg_2029) %>%
+        dist_rate(kick_tbl, fg, fg_0019, fg_2029, fg_3039, fg_4049, fg_50)
+
+    }
+
     if(any(kick_cols == "fg_0039")){
       kick_tbl <- kick_tbl %>%
         mutate(tot_0039 = sum_columns(kick_tbl, fg_0019, fg_2029, fg_3039),
                fg_0039 = ifelse(!is.na(tot_0039) & is.na(fg_0039), tot_0039, fg_0039)) %>%
         select(-tot_0039)
 
-      kicking <- kicking %>%
-        dist_rate(kick_tbl, fg_0039, fg_0019, fg_2029, fg_3039) %>%
+      kicking <- kicking %>% inner_join(select(kick_tbl, id, data_src, fg_0039), by = c("id", "data_src")) %>%
+        dist_rate(kick_tbl, fg_0039, fg_0019, fg_2029, fg_3039) %>% select(-fg_0039)
+
+      kick_tbl <- select(kick_tbl, -fg_0019, -fg_2029, -fg_3039) %>%
+        inner_join(select(kicking, id, data_src, fg_0019, fg_2029, fg_3039), by = c("id", "data_src"))
+
+      kicking <- kicking %>% select(-fg_0019, -fg_2029, -fg_3039) %>%
         dist_rate(kick_tbl, fg, fg_0019, fg_2029, fg_3039, fg_4049, fg_50)
-    } else {
+    }
+
+    if(!any(kick_cols %in% c("fg_0029", "fg_0039"))){
       kicking <- kicking %>%
         dist_rate(kick_tbl, fg, fg_0019, fg_2029, fg_3039, fg_4049, fg_50)
     }

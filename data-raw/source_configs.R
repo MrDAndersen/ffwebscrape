@@ -22,7 +22,7 @@ html_sites <- list(
       list(
         col = function(p)list(TRUE ~ "Player"),
         into = function(p)list(TRUE ~ c("player", "team")),
-        regex = function(p)list(TRUE ~ "([A-Za-z'-. ]+),\\s([A-Za-z]+)")
+        regex = function(p)list(TRUE ~ "([A-Za-z0-9'-. ]+),\\s([A-Za-z]+)")
       )),
     stat_cols = c(
       pass_att = "Passing Att", pass_comp = "Passing Cmp", pass_yds = "Passing Yd",

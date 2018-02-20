@@ -147,6 +147,9 @@ projection_source <- R6::R6Class(
         modify_at(names(rename_cols), as.numeric) %>%
         clean_names()
 
+      if("bye" %in% names(data_tbl))
+        data_tbl <- data_tbl %>% modify_at("bye", as.numeric)
+
       if(any(grepl("^rxx", names(data_tbl))) & any(grepl("rush_[0-9]+_tds", names(data_tbl))))
         data_tbl <- rename_at(data_tbl, vars(matches("^rxx_[0-9]+")), funs(gsub("rxx", "rush", .)))
 
@@ -162,10 +165,11 @@ projection_source <- R6::R6Class(
       else{
         pos <- private$session$pos
         if(!is.null(pos) && pos == "DST"){
-          if(all(data_tbl$player %in% ff_player_data$name))
-            data_tbl %>% add_column(id =   ff_player_data$id[match(data_tbl$player, ff_player_data$name)], .before = 1)
-          else if("team" %in% names(data_tbl) && all(data_tbl$team %in% ff_player_data$team))
-            data_tbl %>% add_column(id =   ff_player_data$id[match(data_tbl$team, ff_player_data$team)], .before = 1)
+          dst_data <- filter(ff_player_data, position == "Def")
+          if("player" %in% names(data_tbl) && all(data_tbl$player %in% dst_data$name))
+            data_tbl %>% add_column(id =   dst_data$id[match(data_tbl$player, dst_data$name)], .before = 1)
+          else if("team" %in% names(data_tbl) && all(data_tbl$team %in% dst_data$team))
+            data_tbl %>% add_column(id =   dst_data$id[match(data_tbl$team, dst_data$team)], .before = 1)
         } else {
           data_tbl
         }
@@ -388,6 +392,9 @@ html_source <- R6::R6Class(
       sep_cols <- split_cols[map_lgl(split_cols, ~ any(names(.x) == "sep"))]
       ex_cols <-  split_cols[!map_lgl(split_cols, ~ any(names(.x) == "sep"))]
 
+      src_table <- src_table %>%
+        mutate_if(is.character, funs(str_replace_all(., "\\-\\-", "")))
+
       if(length(sep_cols) > 0)
         src_table <- accumulate(sep_cols,
                                 ~ separate(data = .x, .y[["col"]], .y[["into"]],
@@ -415,6 +422,9 @@ html_source <- R6::R6Class(
       }
 
       src_table <- self$name_cols(src_table, position)
+
+      if(private$data_host() == "www.fftoday.com" & position == "DST")
+        src_table <- rename(src_table, player = team)
 
       if(any(grepl("name$", names(src_table))))
         src_table <- src_table %>% rename_at(vars(matches("name$")), funs(function(.)"player"))
