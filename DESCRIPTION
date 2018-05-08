@@ -13,6 +13,7 @@ Imports: R6
 Depends: tidyverse, rvest, httr, readxl, janitor, glue
 RoxygenNote: 6.0.1
 Collate: 
+    'adp_functions.R'
     'calc_projections.R'
     'ffwebscrape.R'
     'helper_funcs.R'
@@ -20,6 +21,7 @@ Collate:
     'make_scoring.R'
     'recode_vars.R'
     'scoring_rules.R'
+    'scrape_ecr.R'
     'scrape_funcs.R'
     'source_classes.R'
     'stats_aggregation.R'
