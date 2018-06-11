@@ -45,7 +45,7 @@ default_weights = c(CBS = 0.344, Yahoo = 0.400,  ESPN = 0.329,  NFL = 0.329,
                     FFToday = 0.379, NumberFire = 0.322, FantasyPros = 0.000,
                     FantasySharks= 0.327, FantasyFootballNerd = 0.000,
                     Walterfootball = 0.281, RTSports= 0.330,
-                    FantasyData= 0.428, Fleaflicker = 0.428)
+                    FantasyData= 0.428, Fleaflicker = 0.428, Footballguys = 0.428)
 
 
 quant_funcs <- list(average = quantile, robust = quantile,
@@ -60,6 +60,8 @@ sd_funcs <- list(average = function(x, w, na.rm)sd(x, na.rm = na.rm),
                  weighted = weighted.sd)
 sd_args <- list(list(na.rm = TRUE), list(na.rm = TRUE), list(na.rm = TRUE))
 get_sd <- function(pts, wt)invoke_map(sd_funcs, sd_args, x = pts, w = wt)
+
+
 projected_points <- function(data_result, scoring_rules, src_weights = NULL){
 
   if(is.null(src_weights)){
@@ -78,7 +80,10 @@ projected_points <- function(data_result, scoring_rules, src_weights = NULL){
 
   scoring_tbl <- make_scoring_tbl(scoring_rules)
 
-  dst_pt_allow <- scoring_rules[[c("dst", "dst_pts_allowed")]]
+  dst_pt_allow <- NULL
+
+  if("dst" %in% names(scoring_rules))
+    dst_pt_allow <- scoring_rules[[c("dst", "dst_pts_allowed")]]
 
   dst_bracket <- is.null(dst_pt_allow) & !is.null(scoring_rules$pts_bracket)
 
@@ -139,6 +144,7 @@ projected_points <- function(data_result, scoring_rules, src_weights = NULL){
     mutate(sd_pts = ifelse(is.na(sd_pts), (ceiling - floor) / 6, sd_pts))
 
  return(list(stats = stat_table %>% map(inner_join, src_points, by = c("id", "pos", "data_src")),
+             aggr = agg_stats,
              projected = player_points))
 }
 

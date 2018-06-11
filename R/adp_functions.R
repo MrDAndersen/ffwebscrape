@@ -183,14 +183,15 @@ nfl_draft <- function(){
 
   })
 
-  draft_tbl <- draft_tbl %>% rowwise() %>%
-    mutate(nfl_id = ifelse(is.na(nfl_id), nflTeam.id[which(nflTeam.abb == team)], nfl_id)) %>%
-    as.data.frame()
+  if(nrow(draft_tbl) > 0){
+    draft_tbl <- draft_tbl %>% rowwise() %>%
+      mutate(nfl_id = ifelse(is.na(nfl_id), nflTeam.id[which(nflTeam.abb == team)], nfl_id)) %>%
+      as.data.frame()
 
-  draft_tbl <- draft_tbl %>%
-    add_column(id = id_col(draft_tbl$nfl_id, "nfl_id"), .before = 1) %>%
-    mutate(adp = as.numeric(adp), aav = as.numeric(aav))
-
+    draft_tbl <- draft_tbl %>%
+      add_column(id = id_col(draft_tbl$nfl_id, "nfl_id"), .before = 1) %>%
+      mutate(adp = as.numeric(adp), aav = as.numeric(aav))
+  }
   return(draft_tbl)
 }
 
@@ -207,7 +208,7 @@ nfl_draft <- function(){
 #' \code{player_ids} table and a column for each source. The average value is also
 #' returned if multiple sources are specified
 #' @export
-get_adp <- function(sources = c("RTS", "CBS", "ESPN", "Yahoo", "NFL"),
+get_adp <- function(sources = c("RTS", "CBS", "ESPN", "Yahoo", "NFL", "FFC"),
                     type = c("ADP", "AAV")){
   type <- match.arg(type)
   sources <- match.arg(sources, several.ok = TRUE)
@@ -216,21 +217,27 @@ get_adp <- function(sources = c("RTS", "CBS", "ESPN", "Yahoo", "NFL"),
 
   if("CBS" %in% sources & type == "AAV")
     sources <- setdiff(sources, "CBS")
+  if("FFC" %in% sources & type == "AAV")
+    sources <- setdiff(sources, "FFC")
 
   draft_funs <- list(rts = rts_draft, cbs = cbs_draft, espn = espn_draft,
-                     yahoo = yahoo_draft, nfl = nfl_draft)
+                     yahoo = yahoo_draft, nfl = nfl_draft, ffc = ffc_draft)
 
   draft_funs <- draft_funs[tolower(sources)]
 
   draft_list <- lapply(draft_funs, function(f){
     f_args <- list()
 
-    if(!is.null(formals(f)))
+    if("aav" %in% names(formals(f)))
       f_args$aav <- type == "AAV"
 
     tbl <- do.call(f, args = f_args)
     return(tbl[!is.na(tbl$id),])
   })
+
+  draft_list <- keep(draft_list, ~ nrow(.x) > 0)
+
+  draft_funs <- draft_funs[names(draft_list)]
 
   draft_table <- draft_list[[1]][, c("id", draft_type)]
 
@@ -259,10 +266,40 @@ get_adp <- function(sources = c("RTS", "CBS", "ESPN", "Yahoo", "NFL"),
     }
   }
 
-  names(draft_table) <-  c("id", sources, "Avg")[1:length(draft_table)]
+  names(draft_table) <-  c("id", names(draft_list), "Avg")[1:length(draft_table)]
 
   return(draft_table)
 }
 
 
+#' @export
+ffc_draft <- function(format=c("standard", "ppr", "2qb", "dynasty", "rookie"),
+                      pos = c("all", "qb", "rb", "wr", "te", "def", "pk"),
+                              season=2018){
+
+  ffc_url <- "https://fantasyfootballcalculator.com/adp?format=standard&year=2018&teams=12&view=graph&pos=all"
+  format <- match.arg(format)
+  pos <- match.arg(pos)
+
+
+  ffc_url <- modify_url(ffc_url, query = list(format = format, year = season, teams = 12, view = "graph", pos = pos))
+
+  ffc_page <- read_html(ffc_url)
+  ffc_page %>% xml_nodes("table.adp tr th.visible-xs") %>% xml_remove()
+  ffc_page %>% xml_nodes("table.adp tr th:last-child") %>% xml_remove()
+  ffc_page %>% xml_nodes("table.adp tr td:last-child") %>% xml_remove()
+
+  pids <- ffc_page %>% xml_nodes("table.adp td a") %>% xml_attr("href") %>% str_remove("/players/")
+  ffc_page %>% xml_node("table.adp") %>% html_table() %>%
+    clean_names() %>% rename(player = "name") %>%
+    add_column(fp_id = pids, .before = 1) %>%
+    mutate(player = recode(player, "Pat Mahomes" = "Patrick Mahomes"),
+           fp_id = recode(fp_id, "ronald-jones" = "ronald-jones-ii",
+                          "david-johnson" = "david-johnson-rb",
+                          "michael-thomas" = "michael-thomas-wr")) %>%
+    add_column(id = ffwebscrape:::id_col(.$fp_id, "fantasypro_id"), .before = 1) %>%
+    mutate(id = ifelse(is.na(id), ffwebscrape:::match_players(.), id)) %>%
+    rename(adp = overall)
+
+}
 

@@ -31,6 +31,12 @@ impute_na_off <- function(tbl){
 
     if(stat_type == "rush")
       tbl <- tbl %>% select(-rec_tds, -reg_tds)
+  } else {
+    if(stat_type == "rec")
+      tbl <- tbl %>% select(-rush_tds)
+
+    if(stat_type == "rush")
+      tbl <- tbl %>% select(-rec_tds)
   }
 
   names(tbl) <- gsub("(pass|rush|rec)_(.+)", "\\2", names(tbl))
