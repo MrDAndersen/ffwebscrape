@@ -6,7 +6,7 @@ scoring = list(
   ),
   rush = list(
     all_pos = TRUE,
-    rush_yds = 0.1,  rush_att = 0, rush_40_yds = 0, rush_tds = 6, two_pts = 2,
+    rush_yds = 0.1,  rush_att = 0, rush_40_yds = 0, rush_tds = 6,
     rush_100_yds = 0, rush_150_yds = 0, rush_200_yds = 0),
   rec = list(
     all_pos = TRUE,

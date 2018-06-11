@@ -11,8 +11,8 @@ projection_source
 \description{
 This objects represent the basic set of data needed for defining a projection
 source. It is used as superclass for the specific source objects that are
-specific to which type of data is returned. Use link{html_source},
-link{json_source} and link{xlsx_source} to create a projection source.
+specific to which type of data is returned. Use \link{html_source},
+\link{json_source} and \link{xlsx_source} to create a projection source.
 }
 \section{Fields}{
 

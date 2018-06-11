@@ -2,6 +2,7 @@
 
 export(cbs_draft)
 export(espn_draft)
+export(ffc_draft)
 export(from_rate)
 export(get_adp)
 export(miss_rate)

@@ -2,8 +2,8 @@
 #'
 #' This objects represent the basic set of data needed for defining a projection
 #' source. It is used as superclass for the specific source objects that are
-#' specific to which type of data is returned. Use link{html_source},
-#' link{json_source} and link{xlsx_source} to create a projection source.
+#' specific to which type of data is returned. Use \link{html_source},
+#' \link{json_source} and \link{xlsx_source} to create a projection source.
 #'
 #' @field base The base url for the source
 #' @field id_col The name of the column in the \code{player_ids} table that
@@ -352,7 +352,8 @@ html_source <- R6::R6Class(
           src_id_col <- intersect(names(data_table), c("PlayerID"))
           if(length(src_id_col) > 0){
             names(src_id_col) <- "src_id"
-            data_table <- rename(data_table, !!!src_id_col)
+            data_table <- rename(data_table, !!!src_id_col) %>%
+              mutate(src_id = as.character(src_id))
           }
         }
 
@@ -426,9 +427,11 @@ html_source <- R6::R6Class(
       if(private$data_host() == "www.fftoday.com" & position == "DST")
         src_table <- rename(src_table, player = team)
 
-      if(any(grepl("name$", names(src_table))))
-        src_table <- src_table %>% rename_at(vars(matches("name$")), funs(function(.)"player"))
 
+      if(any(grepl("name$", names(src_table)))){
+        rn_name <- function(x)return("player")
+        src_table <- src_table %>% rename_at(vars(matches("name$")), funs(rn_name(.)))
+      }
       src_table <- src_table %>% self$set_id()
 
       return(src_table)
@@ -530,8 +533,15 @@ json_source <- R6::R6Class(
         self$name_cols(position)
 
       player_cols <- self$player_cols[which(self$player_cols %in% names(data_table))]
-      data_table %>% rename(!!!player_cols) %>% self$set_id()
+      data_table <- data_table %>% rename(!!!player_cols) %>% self$set_id()
+      if("src_id" %in% names(data_table)){
+        data_table <- mutate(data_table, src_id = as.character(src_id))
+      }
+      if("position" %in% names(data_table)){
+        data_table <- mutate(data_table, position = as.character(position))
+      }
 
+      return(data_table)
     }
   )
 )
