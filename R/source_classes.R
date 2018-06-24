@@ -312,6 +312,12 @@ html_source <- R6::R6Class(
           map(rm_elem, html_nodes, x = data_page) %>% map(xml_remove)
         }
 
+        if(length(html_nodes(data_page, table_css)) == 0){
+          warning("Table not found on url: ", src_session$url, call. = FALSE)
+          break
+        }
+
+
         if(is.null(self$index)){
           data_table <- data_page %>% html_node(table_css) %>%
             html_table(header = TRUE)

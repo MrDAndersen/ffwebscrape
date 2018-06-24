@@ -1,4 +1,4 @@
-scoring = list(
+scoring <- list(
   pass = list(
     pass_att = 0, pass_comp = 0, pass_inc = 0, pass_yds = 0.04, pass_tds = 4,
     pass_int = -3, pass_40_yds = 0,  pass_300_yds = 0, pass_350_yds = 0,

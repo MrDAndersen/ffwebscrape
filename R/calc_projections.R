@@ -1,5 +1,10 @@
+#' Calculate Weighted Standard Deviation
+#'
+#' Function to calculate weighted standard deviation.
+#' @param x The observations to calculate the standard deviations from
+#' @param w The weights associated with each observation.
+#' @param na.rm If \code{TRUE}, then NA values will be removed.
 weighted.sd <- function(x, w, na.rm = FALSE){
-
   sum.w <- sum(w, na.rm = na.rm)
   sum.w2 <- sum(w^2, na.rm = na.rm)
   mean.w <- sum(x * w,na.rm = na.rm) / sum(w, na.rm = na.rm)
@@ -7,6 +12,9 @@ weighted.sd <- function(x, w, na.rm = FALSE){
   return(x.sd.w)
 }
 
+#' Wilcox Location Parameter
+#'
+#' Modified function to calculate Wilcox' Location paramenter
 wilcox.loc <- function(vec, na.rm = FALSE){
   n <- length(vec)
   # If number of observations is less than 2 then we just return mean as location estimate
@@ -19,7 +27,9 @@ wilcox.loc <- function(vec, na.rm = FALSE){
   return(median(pairAvg, na.rm = na.rm))
 }
 
-
+#' Cohen's d
+#'
+#' Function to calculate Cohen's D value when testing effect size
 cohens_d <- function(x, y, na.rm = TRUE) {
   if(na.rm){
     x <- x[!is.na(x)]
@@ -41,13 +51,23 @@ cohens_d <- function(x, y, na.rm = TRUE) {
   return(mean.diff/common.sd)
 }
 
-default_weights = c(CBS = 0.344, Yahoo = 0.400,  ESPN = 0.329,  NFL = 0.329,
+#' Default Weights for Projection Sources
+#'
+#' These are the weights that are used for each source when calculation weighted
+#' averages and standard deviations if no weights are specified.
+#' \code{c(CBS = 0.344, Yahoo = 0.400,  ESPN = 0.329,  NFL = 0.329,
+#' FFToday = 0.379, NumberFire = 0.322, FantasyPros = 0.000,
+#' FantasySharks = 0.327, FantasyFootballNerd = 0.000,
+#' Walterfootball = 0.281, RTSports = 0.330,
+#' FantasyData = 0.428, Fleaflicker = 0.428)}
+default_weights <- c(CBS = 0.344, Yahoo = 0.400,  ESPN = 0.329,  NFL = 0.329,
                     FFToday = 0.379, NumberFire = 0.322, FantasyPros = 0.000,
                     FantasySharks= 0.327, FantasyFootballNerd = 0.000,
                     Walterfootball = 0.281, RTSports= 0.330,
-                    FantasyData= 0.428, Fleaflicker = 0.428, Footballguys = 0.428)
+                    FantasyData= 0.428, Fleaflicker = 0.428)
 
-
+# Helper functions to calculate the quantiles and standard deviations for the
+# source points. Used in the points_sd and confidence interval functions
 quant_funcs <- list(average = quantile, robust = quantile,
                     weighted = Hmisc::wtd.quantile)
 quant_args <- list(list(probs = c(0.05, 0.95)),  list(probs = c(0.05, 0.95)),
@@ -62,7 +82,97 @@ sd_args <- list(list(na.rm = TRUE), list(na.rm = TRUE), list(na.rm = TRUE))
 get_sd <- function(pts, wt)invoke_map(sd_funcs, sd_args, x = pts, w = wt)
 
 
-projected_points <- function(data_result, scoring_rules, src_weights = NULL){
+#' Calculate Source Points
+#'
+#' Function to calculate the projected points for each source.
+#' @param data_result An output from the \link{scrape_data} function.
+#' @param scoring_rules The scoring rules to be used.
+source_points <- function(data_result, scoring_rules){
+  scoring_tbl <- make_scoring_tbl(scoring_rules)
+
+  long_result <- data_result %>%
+    stats_by_category() %>%
+    map(gather, "data_col", "stat_value", -c(id, data_src, pos)) %>%
+    bind_rows()
+
+  dst_pt_allow <- NULL
+
+  if("dst" %in% names(scoring_rules))
+    dst_pt_allow <- scoring_rules[[c("dst", "dst_pts_allowed")]]
+
+  dst_bracket <- is.null(dst_pt_allow) & !is.null(scoring_rules$pts_bracket)
+
+  dst_src <- long_result %>% slice(0) %>% add_column(points = 0)
+  if(dst_bracket){
+    dst_src <- long_result %>%  filter(data_col == "dst_pts_allowed") %>%
+      mutate(points = ffwebscrape:::dst_points(stat_value, scoring$pts_bracket))
+  }
+
+  long_result %>%
+    inner_join(scoring_tbl, by = c("pos", "data_col")) %>%
+    mutate(points = stat_value * points)  %>%
+    bind_rows(dst_src) %>%
+    group_by(pos, data_src, id) %>%
+    summarise(points = sum(points, na.rm = TRUE)) %>% ungroup()
+}
+
+# Generate weights from a source points table if no weights are given
+weights_from_src <- function(src_pts, weights = NULL){
+  if(is.null(weights)){
+    src_weights <- default_weights[unique(src_pts$data_src)]
+  }
+
+  src_weights %>% as.tibble() %>%
+    `names<-`("weight") %>% rownames_to_column('data_src')
+}
+
+#' Calculate Standard Deviations for Projected Points
+#'
+#' This function calculates the standard deviaion for projected points from
+#' different sources
+#' @param src_pts An output from the \link{source_points} function
+#' @param weights A named vector with the weights from each source.
+#' See \link{default_weights}
+points_sd <- function(src_pts, weights = NULL){
+
+  weight_tbl <- weights_from_src(src_pts, weights)
+
+  src_pts %>% inner_join(weight_tbl, by = "data_src") %>%
+    split(src_pts$pos) %>% map(~ split(.x, .x$id)) %>%
+    modify_depth(2, ~ get_sd(.x$points, .x$weight)) %>% modify_depth(2, as.tibble) %>%
+    modify_depth(1, bind_rows, .id = "id") %>% bind_rows(.id = "pos") %>%
+    gather("avg_type", "sd_pts", -id, -pos)
+}
+
+#' Calculate the Upper and Lower Limits for Projected Points
+#'
+#' This function calculates the ceiling and floor for projected points from
+#' different sources based on quantiles
+#' @param src_pts An output from the \link{source_points} function
+#' @param weights A named vector with the weights from each source.
+#' See \link{default_weights}
+confidence_interval <- function(src_pts, weights = NULL){
+
+  weight_tbl <- weights_from_src(src_pts, weights)
+
+  src_pts %>% inner_join(weight_tbl, by = "data_src") %>%
+    split(src_pts$pos) %>% map(~ split(.x, .x$id)) %>%
+    modify_depth(2, ~ get_quant(.x$points, .x$weight)) %>% modify_depth(3, t) %>%
+    modify_depth(3, as.tibble) %>% modify_depth(2, bind_rows, .id  = "avg_type") %>%
+    modify_depth(1, bind_rows, .id = "id") %>% bind_rows(.id = "pos") %>%
+    mutate(`5%` = ifelse(is.na(`5%`),` 5%`, `5%`)) %>% select(-` 5%`) %>%
+    rename(floor = "5%", ceiling = "95%")
+}
+
+#' Aggregate Projected Stats
+#'
+#' This function aggregates the projected stats collected from each source with
+#' the \link{scrape_data} function.
+#' @param data_result An output from the \link{scrape_data} function.
+#' @param src_weights A named vector with the weights from each source.
+#' See \link{default_weights}
+#' @export
+aggregate_stats <- function(data_result, src_weights = NULL){
 
   if(is.null(src_weights)){
     data_src <- data_result %>% map(`[[`, "data_src") %>% reduce(union)
@@ -72,12 +182,26 @@ projected_points <- function(data_result, scoring_rules, src_weights = NULL){
   weight_tbl <- src_weights %>% as.tibble() %>%
     `names<-`("weight") %>% rownames_to_column('data_src')
 
-  long_result <- data_result %>% stats_by_category() %>%
+  data_result %>% stats_by_category() %>%
     map(inner_join, weight_tbl, by = "data_src") %>%
     map(gather, "data_col", "stat_value",
         -c(id, data_src, pos, weight)) %>%
-    bind_rows()
+    bind_rows() %>% group_by(pos, id, data_col) %>%
+    summarise(robust = wilcox.loc(stat_value, na.rm = TRUE),
+              average = mean(stat_value, na.rm = TRUE ),
+              weighted = weighted.mean(stat_value, w = weight, na.rm = TRUE)) %>%
+    gather("avg_type", "stat_value", -c(id, pos, data_col))
+}
 
+#' Calculate Projected Points
+#'
+#' This function calculates the projected points for each player based on the
+#' aggregated stats from the \link{aggregate_stats} function. The resulting table
+#' contains the projected points, the position rank and the points drop-off for
+#' each player.
+#' @param agg_stats An output from the \link{aggregate_stats} function
+#' @param scoring_rules The scoring rules to be used.
+projected_points <- function(agg_stats, scoring_rules){
   scoring_tbl <- make_scoring_tbl(scoring_rules)
 
   dst_pt_allow <- NULL
@@ -87,49 +211,19 @@ projected_points <- function(data_result, scoring_rules, src_weights = NULL){
 
   dst_bracket <- is.null(dst_pt_allow) & !is.null(scoring_rules$pts_bracket)
 
-  stat_table <- long_result %>% split(long_result$pos) %>%
-    map(spread, data_col, stat_value) %>% map(select, -weight)
-
-  dst_src <- long_result %>% slice(0) %>% add_column(points = 0)
+  dst_src <- agg_stats %>% slice(0) %>% add_column(points = 0)
   if(dst_bracket){
-    dst_src <- long_result %>%  filter(data_col == "dst_pts_allowed") %>%
-      mutate(points = ffwebscrape:::dst_points(stat_value, scoring$pts_bracket))
+    dst_src <- agg_stats %>%  filter(data_col == "dst_pts_allowed") %>%
+      mutate(points = ffwebscrape:::dst_points(stat_value, scoring_rules$pts_bracket))
   }
-
-  src_points <- long_result %>%
-    inner_join(scoring_tbl, by = c("pos", "data_col")) %>%
-    mutate(points = stat_value * points)  %>%
-    bind_rows(dst_src) %>%
-    group_by(pos, data_src, id) %>%
-    summarise(points = sum(points, na.rm = TRUE)) %>% ungroup()
-
-  conf_int <- src_points %>% inner_join(weight_tbl, by = "data_src") %>%
-    split(src_points$pos) %>% map(~ split(.x, .x$id)) %>%
-    modify_depth(2, ~ get_quant(.x$points, .x$weight)) %>% modify_depth(3, t) %>%
-    modify_depth(3, as.tibble) %>% modify_depth(2, bind_rows, .id  = "avg_type") %>%
-    modify_depth(1, bind_rows, .id = "id") %>% bind_rows(.id = "pos") %>%
-    mutate(`5%` = ifelse(is.na(`5%`),` 5%`, `5%`)) %>% select(-` 5%`) %>%
-    rename(floor = "5%", ceiling = "95%")
-
-  std_dev <- src_points %>% inner_join(weight_tbl, by = "data_src") %>%
-    split(src_points$pos) %>% map(~ split(.x, .x$id)) %>%
-    modify_depth(2, ~ get_sd(.x$points, .x$weight)) %>% modify_depth(2, as.tibble) %>%
-    modify_depth(1, bind_rows, .id = "id") %>% bind_rows(.id = "pos") %>%
-    gather("avg_type", "sd_pts", -id, -pos)
-
-  agg_stats <-  long_result %>% group_by(pos, id, data_col) %>%
-    summarise(robust = wilcox.loc(stat_value, na.rm = TRUE),
-              average = mean(stat_value, na.rm = TRUE ),
-              weighted = weighted.mean(stat_value, w = weight, na.rm = TRUE)) %>%
-    gather("avg_type", "stat_value", -c(id, pos, data_col))
 
   dst_agg <- dst_src %>% slice(0)
 
   if(dst_bracket){
     dst_agg <- agg_stats %>%  filter(data_col == "dst_pts_allowed") %>%
-      mutate(points = ffwebscrape:::dst_points(stat_value, scoring$pts_bracket))
+      mutate(points = ffwebscrape:::dst_points(stat_value, scoring_rules$pts_bracket))
   }
-  player_points <- agg_stats  %>%
+  agg_stats  %>%
     inner_join(scoring_tbl, by = c("pos", "data_col")) %>%
     mutate(points = stat_value * points) %>%
     bind_rows(dst_agg) %>%
@@ -138,18 +232,29 @@ projected_points <- function(data_result, scoring_rules, src_weights = NULL){
     mutate(pos_rank = dense_rank(-points),
            drop_off =  points - (lead(points, order_by = pos_rank) +
                                    lead(points, 2, order_by = pos_rank)) /2 ) %>%
-    ungroup() %>%
-    inner_join(std_dev, by = c("pos", "id", "avg_type")) %>%
-    inner_join(conf_int, by = c("pos", "id", "avg_type")) %>%
-    mutate(sd_pts = ifelse(is.na(sd_pts), (ceiling - floor) / 6, sd_pts))
-
- return(list(stats = stat_table %>% map(inner_join, src_points, by = c("id", "pos", "data_src")),
-             aggr = agg_stats,
-             projected = player_points))
+    ungroup()
 }
 
+
+#' Default VOR Baseline
+#'
+#' This is the default baseline that is used if not otherwise specified when
+#' calculating VOR:
+#' \code{c(QB = 13, RB = 35, WR = 36, TE = 13, K = 8, DST = 3, DL = 10, LB = 10, DB = 10)}
 default_baseline <- c(QB = 13, RB = 35, WR = 36, TE = 13, K = 8, DST = 3, DL = 10, LB = 10, DB = 10)
 
+#' Calculate VOR
+#'
+#' This function calculates the VOR based on an output from the \link{projected_points}
+#' and if floor or ceiling VOR is requested with floor and ceiling added from the
+#' \link{confidence_interval} function
+#' @param points_table An output from the \link{projected_points} function and merged
+#' with output from the the \link{projected_points} function and merged if floor or ceiling vor
+#' is requested
+#' @param vor_baseline The VOR Baseline to be used. If omitted then the
+#' \link{default_baseline} will be used
+#' @param vor_var One of \code{c("points", "floor", "ceiling")} indicating which
+#' basis is used for the vor calculation
 set_vor <- function(points_table, vor_baseline = NULL, vor_var = c("points", "floor", "ceiling")){
   if(is.null(vor_baseline))
     vor_baseline <- default_baseline
@@ -171,6 +276,14 @@ set_vor <- function(points_table, vor_baseline = NULL, vor_var = c("points", "fl
   return(vor_tbl)
 }
 
+#' Calculate VOR for Points, Ceiling and Floor
+#'
+#' This function calculates VOR for projected points as well as the floor and
+#' ceiling values.
+#' @param tbl The output from the \link{projected_points} function that has
+#' been merged with the output from  he \link{confidence_interval} function
+#' @param vor_baseline The VOR baseline values to be used. If omitted then the
+#' \link{default_baseline} will be used
 add_vor <- function(tbl, vor_baseline = NULL){
   accumulate(c("points", "floor", "ceiling"),
              ~ inner_join(.x, set_vor(.x, vor_baseline, vor_var = .y),
@@ -178,8 +291,21 @@ add_vor <- function(tbl, vor_baseline = NULL){
              .init = tbl)[[4]]
 }
 
+#' Default Threshold Values for Tiers
+#'
+#' These are the default threshold values used when applying Cohen's D values
+#' to determine tiers:
+#' \code{c(QB = 1, RB = 1, WR = 1, TE = 1, K = 1, DST = 0.1, DL = 1, DB = 1, LB = 1)}
 default_threshold <-  c(QB = 1, RB = 1, WR = 1, TE = 1, K = 1, DST = 0.1, DL = 1, DB = 1, LB = 1)
 
+#' Determine Tiers by Position
+#'
+#' This function determines tiers for each position by applying Cohen's D effect
+#' size
+#' @param data_tbl An output from the \link{projected_points} function
+#' @param d_threshold THe thresholds to use when applying Cohens'd D function to
+#' determine the tiers. If omitted then the \link{default_threshold} will be used.
+#' @param src_points An output from the \link{source_points} function
 set_tiers <- function(data_tbl, d_threshold = NULL, src_points){
   if(is.null(d_threshold))
     d_threshold <- default_threshold
@@ -212,4 +338,176 @@ set_tiers <- function(data_tbl, d_threshold = NULL, src_points){
   tier_tbl %>% select(-dthres) %>% ungroup()
 }
 
+#' Create a Projections Table
+#'
+#' This function creates the projections table based on the scraped data from the
+#' \link{scrape_data} function. The output is a table containing the projected
+#' points, confidence intervals, standard deviation for points, and if seasonal
+#' data also the VOR values
+#' @param data_result An output from the \link{scrape_data} function
+#' @param scoring_rules The scoring rules to be used for calculations
+#' @param src_weights The weights for each source to be used in calculations. If
+#' omitted then \link{default_weights} will be used
+#' @param vor_baseline The baseline to use for VOR calculations. If omitted then
+#' the \link{default_baseline} will be used
+#' @param tier_thresholds The threshold values to be used when determining tiers.
+#' If omitted then the \link{default_threshold} will be used.
+#' @export
+projections_table <- function(data_result, scoring_rules = NULL, src_weights = NULL,
+                              vor_baseline = NULL, tier_thresholds = NULL){
+  if(is.null(scoring_rules))
+    scoring_rules <- scoring
+
+  if(scoring_rules$rec$all_pos){
+    lg_type <- scoring_rules$rec$rec %>% rep(length(data_result)) %>%
+      `names<-`(names(data_result)) %>%
+      map_chr(~ case_when(.x > 0.5 ~ "PPR", .x > 0  ~ "Half", TRUE ~ "Std"))
+  } else {
+    lg_type <- map_dbl(mg_scoring$rec[-which(names(mg_scoring$rec) == "all_pos")], `[[`, "rec") %>%
+      map_chr(~ case_when(.x > 0.5 ~ "PPR", .x > 0  ~ "Half", TRUE ~ "Std"))
+
+    lg_type[setdiff(names(data_result), names(lg_type))] < "Std"
+  }
+
+  data_list <- invoke_map(list(src_pts = source_points, agg_stats = aggregate_stats),
+                          list(list(data_result = data_result, scoring_rules = scoring_rules),
+                               list(data_result = data_result, src_weights = src_weights)))
+
+  pts_uncertainty <- invoke_map(list(points_sd, confidence_interval),
+                                src_pts = data_list$src_pts, weights = NULL) %>%
+    reduce(inner_join, by = c("pos", "id","avg_type"))
+
+  out_df<- data_list$agg_stats %>%
+    projected_points(scoring_rules) %>%
+    inner_join(pts_uncertainty, by = c("pos", "id","avg_type")) %>%
+    group_by(avg_type) %>%
+    set_tiers(tier_thresholds, data_list$src_pts ) %>%
+    ungroup()
+
+  if(attr(data_result, "week") == 0){
+    out_df <- out_df %>% split(.$avg_type) %>%
+      map(add_vor, vor_baseline = vor_baseline) %>% bind_rows() %>%
+      rename(rank = points_rank)
+  }
+
+  out_df %>%
+    `attr<-`(which = "season", attr(data_result, "season")) %>%
+    `attr<-`(which = "week", attr(data_result, "week")) %>%
+    `attr<-`(which = "lg_type", lg_type)
+}
+
+#' Add ECR to the Projection Table
+#'
+#' This function will add the ECR values to the projetions table generated from
+#' the \link{projections_table} function. It will add the positional ECR, the
+#' standard deviation for the positional ECR, and if seasonal data also the
+#' overal ECR value
+#' @param projection_table An output from the \link{projections_table} function.
+#' @export
+add_ecr <- function(projection_table){
+  lg_type <- attr(projection_table, "lg_type")
+  season <- attr(projection_table, "season")
+  week <- attr(projection_table, "week")
+  ecr_pos <- lg_type %>%
+    imap(~ scrape_ecr(rank_period = ifelse(week == 0, "draft", "week"),
+                      position = .y, rank_type = .x)) %>%
+    map(select, id, pos_ecr = avg, sd_ecr = std_dev) %>% bind_rows()
+
+  projection_table <- left_join(projection_table, ecr_pos, by = "id")
+  if(week == 0){
+    lg_ov <- ifelse(any(lg_type == "PPR"), "PPR", ifelse(any(lg_type == "Half"), "Half", "Std"))
+    ecr_overall <- scrape_ecr(rank_period = "draft", rank_type = lg_ov) %>%
+      select(id, ecr = avg)
+    projection_table <- left_join(projection_table, ecr_overall, by = "id")
+  }
+  projection_table  %>%
+    `attr<-`(which = "season", season) %>%
+    `attr<-`(which = "week", week) %>%
+    `attr<-`(which = "lg_type", lg_type)
+}
+
+#' Add ADP to the Projections Table
+#'
+#' This function will add the ADP data to the projections table from the
+#' \link{projections_table} function. It will add the average ADP from the sources
+#' specfied, and the difference between the overall rank and ADP
+#' @param projection_table An output from the \link{projections_table} function
+#' @param sources Which ADP sources should be added. should be one or more of
+#' \code{c("RTS", "CBS", "ESPN", "Yahoo", "NFL", "FFC")}
+#' @export
+add_adp <- function(projection_table,
+                    sources = c("RTS", "CBS", "ESPN", "Yahoo", "NFL", "FFC")){
+
+  sources = match.arg(sources, several.ok = TRUE)
+
+  lg_type <- attr(projection_table, "lg_type")
+  season <- attr(projection_table, "season")
+  week <- attr(projection_table, "week")
+
+  if (week != 0){
+    warning("ADP data is not available for weekly data", call. = FALSE)
+    return(projection_table)
+  }
+  adp_tbl <- get_adp(source, type = "ADP") %>% select(1, length(.)) %>%
+    rename_at(length(.), ~ function(x)return("adp"))
+
+  projection_table <- left_join(projection_table, adp_tbl, by = "id") %>%
+    mutate(adp_diff = rank - adp)
+
+  projection_table  %>%
+    `attr<-`(which = "season", season) %>%
+    `attr<-`(which = "week", week) %>%
+    `attr<-`(which = "lg_type", lg_type)
+}
+
+#' Add AAV to the Projections Table
+#'
+#' This function will add the AAV data to the projections table from the
+#' \link{projections_table} function.
+#' @param projection_table An output from the \link{projections_table} function
+#' @param sources Which AAV sources should be added. should be one or more of
+#' \code{c("RTS", "ESPN", "Yahoo", "NFL")}
+#' @export
+add_aav <- function(projection_table,
+                    sources = c("RTS", "ESPN", "Yahoo", "NFL")){
+
+  sources = match.arg(sources, several.ok = TRUE)
+
+  lg_type <- attr(projection_table, "lg_type")
+  season <- attr(projection_table, "season")
+  week <- attr(projection_table, "week")
+
+  if (week != 0){
+    warning("AAV data is not available for weekly data", call. = FALSE)
+    return(projection_table)
+  }
+  adp_tbl <- get_adp(source, type = "AAV") %>% select(1, length(.)) %>%
+    rename_at(length(.), ~ function(x)return("aav"))
+
+  projection_table  %>%
+    `attr<-`(which = "season", season) %>%
+    `attr<-`(which = "week", week) %>%
+    `attr<-`(which = "lg_type", lg_type)
+}
+
+#' Risk calculation based on two variables
+#'
+#' Calculation of risk is done by scaling the standard deviation variables
+#' passed and averaging them before returning a measure with mean 5 and standard
+#' deviation of 2
+#' @export
+calculate_risk <- function(var1, var2){
+  var1 <- as.numeric(var1)
+  var2 <- as.numeric(var2)
+  Z_var1 <- scale(var1)
+  Z_var2 <- scale(var2)
+
+  Z_var1[is.na(Z_var1)] <- Z_var2[is.na(Z_var1)]
+  Z_var2[is.na(Z_var2)] <- Z_var1[is.na(Z_var2)]
+
+  risk_value <- 2 * scale(rowMeans(data.frame(Z_var1, Z_var2), na.rm=TRUE)) + 5
+
+  return(risk_value)
+
+}
 

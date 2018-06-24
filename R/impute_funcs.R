@@ -42,6 +42,8 @@ impute_na_off <- function(tbl){
   names(tbl) <- gsub("(pass|rush|rec)_(.+)", "\\2", names(tbl))
 
   rec_targets <-  "tgt" %in% names(tbl)
+
+
   if("rec" %in% names(tbl)){
     tbl <- rename(tbl, comp = rec)
     if(rec_targets)
@@ -55,8 +57,6 @@ impute_na_off <- function(tbl){
   }
 
   out_df <- tbl %>% val_from_rate(yds, att) %>% miss_rate(tbl, yds, att)
-
-
 
   if("comp" %in% names(tbl) & stat_type == "pass"){
     out_df <- out_df %>% val_from_calc(tbl, comp, att) %>%
@@ -77,10 +77,10 @@ impute_na_off <- function(tbl){
       dist_rate(tbl, tds, `09_tds`, `1019_tds`, `2029_tds`, `3039_tds`, `4049_tds`, `50_tds`)
   }
 
-  if(any(names(tbl) == "1st" & stat_type == "pass"))
+  if(any(names(tbl) == "1st" & stat_type != "rush"))
     out_df <-  out_df %>% val_from_calc(tbl, `1st`, comp)
 
-  if(any(names(tbl) == "1st" & stat_type != "pass"))
+  if(any(names(tbl) == "1st" & stat_type == "rush"))
     out_df <-  out_df %>% val_from_calc(tbl, `1st`, att)
 
   if(any(names(tbl) == "40_yds" & stat_type == "pass"))
@@ -97,8 +97,8 @@ impute_na_off <- function(tbl){
  names(out_df) <- paste(stat_type, names(out_df), sep = "_") %>%
    gsub(id_pt, "id", ., fixed = TRUE) %>%
    gsub(src_pt, "data_src", ., fixed = TRUE) %>%
-   gsub("rec_att", "rec", ., fixed = TRUE) %>%
-   gsub("rec_comp", "rec_tgt", ., fixed = TRUE)
+   gsub("rec_comp", "rec", ., fixed = TRUE) %>%
+   gsub("rec_att", "rec_tgt", ., fixed = TRUE)
 
  if(!rec_targets & "rec_tgt" %in% names(out_df))
    out_df <- select(out_df, -rec_tgt)
