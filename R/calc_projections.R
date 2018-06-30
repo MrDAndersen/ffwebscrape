@@ -438,7 +438,7 @@ add_ecr <- function(projection_table){
 add_adp <- function(projection_table,
                     sources = c("RTS", "CBS", "ESPN", "Yahoo", "NFL", "FFC")){
 
-  sources = match.arg(sources, several.ok = TRUE)
+  sources <- match.arg(sources, several.ok = TRUE)
 
   lg_type <- attr(projection_table, "lg_type")
   season <- attr(projection_table, "season")
@@ -448,7 +448,7 @@ add_adp <- function(projection_table,
     warning("ADP data is not available for weekly data", call. = FALSE)
     return(projection_table)
   }
-  adp_tbl <- get_adp(source, type = "ADP") %>% select(1, length(.)) %>%
+  adp_tbl <- get_adp(sources, type = "ADP") %>% select(1, length(.)) %>%
     rename_at(length(.), ~ function(x)return("adp"))
 
   projection_table <- left_join(projection_table, adp_tbl, by = "id") %>%
@@ -481,7 +481,7 @@ add_aav <- function(projection_table,
     warning("AAV data is not available for weekly data", call. = FALSE)
     return(projection_table)
   }
-  adp_tbl <- get_adp(source, type = "AAV") %>% select(1, length(.)) %>%
+  adp_tbl <- get_adp(sources, type = "AAV") %>% select(1, length(.)) %>%
     rename_at(length(.), ~ function(x)return("aav"))
 
   projection_table  %>%
@@ -495,7 +495,6 @@ add_aav <- function(projection_table,
 #' Calculation of risk is done by scaling the standard deviation variables
 #' passed and averaging them before returning a measure with mean 5 and standard
 #' deviation of 2
-#' @export
 calculate_risk <- function(var1, var2){
   var1 <- as.numeric(var1)
   var2 <- as.numeric(var2)
@@ -511,3 +510,24 @@ calculate_risk <- function(var1, var2){
 
 }
 
+#' Add calculated risk to the table
+#'
+#' Calculation of risk is done by scaling the standard deviation variables
+#' passed and averaging them before returning a measure with mean 5 and standard
+#' deviation of 2
+#' @export
+add_risk <- function(projection_table){
+
+  lg_type <- attr(projection_table, "lg_type")
+  season <- attr(projection_table, "season")
+  week <- attr(projection_table, "week")
+
+  projection_table %>%
+    group_by(pos) %>%
+    # Calculate Risk values
+    mutate(risk = calculate_risk(sd_pts, sd_ecr)) %>%
+    ungroup() %>%
+    `attr<-`(which = "season", season) %>%
+    `attr<-`(which = "week", week) %>%
+    `attr<-`(which = "lg_type", lg_type)
+}

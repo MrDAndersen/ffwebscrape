@@ -1,16 +1,15 @@
 Package: ffwebscrape
 Type: Package
-Title: What the Package Does (Title Case)
+Title: Scrape Data For Fantasy Football
 Version: 0.1.0
-Author: Who wrote it
-Maintainer: The package maintainer <yourself@somewhere.net>
-Description: More about what it does (maybe more than one line)
-    Use four spaces when indenting paragraphs within the Description.
+Author: Dennis Andersen
+Maintainer: Dennis Andersen <andersen.dennis@outlook.com>
+Description: Scrapes data from multiple public sources of data and compiles into one dataset.
 License: What license is it under?
 Encoding: UTF-8
 LazyData: true
 Imports: R6
-Depends: tidyverse, rvest, httr, readxl, janitor, glue
+Depends: tidyverse, rvest, httr, readxl, janitor, glue, Hmisc
 RoxygenNote: 6.0.1
 Collate: 
     'adp_functions.R'
