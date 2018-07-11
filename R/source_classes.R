@@ -144,7 +144,8 @@ projection_source <- R6::R6Class(
       data_tbl <- data_tbl %>%
         rename(!!!rename_cols) %>%
         clean_format() %>%
-        modify_at(names(rename_cols), as.numeric) %>%
+        modify_at(names(stat_cols), as.numeric) %>%
+        modify_at(stat_cols, as.numeric) %>%
         clean_names()
 
       if("bye" %in% names(data_tbl))
@@ -261,8 +262,10 @@ html_source <- R6::R6Class(
     },
     open_session = function(season, week = NULL, position , ...){
       session_url <- self$get_url(season, week, position , ...)
-      if(is.null(session_url))
+      if(is.null(session_url)){
+        self$close_session()
         return(invisible(self))
+      }
 
       if(private$data_host() == "www.fantasysharks.com"){
         private$session <- session_url

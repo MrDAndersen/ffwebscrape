@@ -138,6 +138,10 @@ points_sd <- function(src_pts, weights = NULL){
   weight_tbl <- weights_from_src(src_pts, weights)
 
   src_pts %>% inner_join(weight_tbl, by = "data_src") %>%
+    group_by(id) %>%
+    mutate(n_obs = n(),
+           weight = if_else(n_obs == 1 & weight == 0, 1, weight)) %>%
+    ungroup() %>% select(-n_obs) %>%
     split(src_pts$pos) %>% map(~ split(.x, .x$id)) %>%
     modify_depth(2, ~ get_sd(.x$points, .x$weight)) %>% modify_depth(2, as.tibble) %>%
     modify_depth(1, bind_rows, .id = "id") %>% bind_rows(.id = "pos") %>%
@@ -156,6 +160,10 @@ confidence_interval <- function(src_pts, weights = NULL){
   weight_tbl <- weights_from_src(src_pts, weights)
 
   src_pts %>% inner_join(weight_tbl, by = "data_src") %>%
+    group_by(id) %>%
+    mutate(n_obs = n(),
+           weight = if_else(n_obs == 1 & weight == 0, 1, weight)) %>%
+    ungroup() %>% select(-n_obs) %>%
     split(src_pts$pos) %>% map(~ split(.x, .x$id)) %>%
     modify_depth(2, ~ get_quant(.x$points, .x$weight)) %>% modify_depth(3, t) %>%
     modify_depth(3, as.tibble) %>% modify_depth(2, bind_rows, .id  = "avg_type") %>%
@@ -363,7 +371,8 @@ projections_table <- function(data_result, scoring_rules = NULL, src_weights = N
       `names<-`(names(data_result)) %>%
       map_chr(~ case_when(.x > 0.5 ~ "PPR", .x > 0  ~ "Half", TRUE ~ "Std"))
   } else {
-    lg_type <- map_dbl(mg_scoring$rec[-which(names(mg_scoring$rec) == "all_pos")], `[[`, "rec") %>%
+    lg_type <- map(scoring_rules$rec[-which(names(scoring_rules$rec) == "all_pos")], `[[`, "rec") %>%
+      keep(~ !is.null(.x)) %>%
       map_chr(~ case_when(.x > 0.5 ~ "PPR", .x > 0  ~ "Half", TRUE ~ "Std"))
 
     lg_type[setdiff(names(data_result), names(lg_type))] < "Std"

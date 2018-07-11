@@ -13,31 +13,50 @@ scoring_positions = list(
 make_scoring_tbl <- function(scoring_rules){
   scoring_rules$pts_bracket <- NULL
 
-  one_pos <- scoring_rules %>% map(names) %>% map(`!=`, "all_pos") %>%
-    map_lgl(all) %>% scoring_rules[.] %>% map(as.tibble) %>%
-    imap(~ add_column(.x, pos = scoring_positions[[.y]])) %>%
-    map(gather, "data_col", "points", -pos) %>% bind_rows()
+  check_one <- scoring_rules %>% map(names) %>% map(`!=`, "all_pos") %>%
+    map_lgl(all)
+  if(any(check_one)){
+    one_pos <- scoring_rules %>% map(names) %>% map(`!=`, "all_pos") %>%
+      map_lgl(all) %>% scoring_rules[.] %>% map(as.tibble) %>%
+      imap(~ add_column(.x, pos = scoring_positions[[.y]])) %>%
+      map(gather, "data_col", "points", -pos) %>% bind_rows()
+  } else {
+    one_pos <- tibble()
+  }
 
+  check_mult <- scoring_rules %>% map(names) %>% map(`==`, "all_pos") %>%
+    map_lgl(any) %>% scoring_rules[.] %>% map_lgl(`[[`, "all_pos")
 
-  mult_pos <- scoring_rules %>% map(names) %>% map(`==`, "all_pos") %>%
+  if(any(check_mult)){
+    mult_pos <- scoring_rules %>% map(names) %>% map(`==`, "all_pos") %>%
+      map_lgl(any) %>% scoring_rules[.] %>% map_lgl(`[[`, "all_pos") %>%
+      which(.) %>% names(.) %>% scoring_rules[.] %>%
+      imap(~ map(scoring_positions[[.y]], append, x = .x)) %>%
+      modify_depth(2, function(x){
+        names(x)[length(x)] <- "pos"
+        x}) %>% modify_depth(2, as.tibble) %>%
+      modify_depth(2, select, -all_pos) %>%
+      modify_depth(2, gather, "data_col", "points", -pos) %>%
+      modify_depth(1, bind_rows) %>% bind_rows()
+  } else {
+    mult_pos <- tibble()
+  }
+
+  check_diff <-  scoring_rules %>% map(names) %>% map(`==`, "all_pos") %>%
     map_lgl(any) %>% scoring_rules[.] %>% map_lgl(`[[`, "all_pos") %>%
-    which(.) %>% names(.) %>% scoring_rules[.] %>%
-    imap(~ map(scoring_positions[[.y]], append, x = .x)) %>%
-    modify_depth(2, function(x){
-      names(x)[length(x)] <- "pos"
-      x}) %>% modify_depth(2, as.tibble) %>%
-    modify_depth(2, select, -all_pos) %>%
-    modify_depth(2, gather, "data_col", "points", -pos) %>%
-    modify_depth(1, bind_rows) %>% bind_rows()
-
-  diff_pos <- scoring_rules %>% map(names) %>% map(`==`, "all_pos") %>%
-    map_lgl(any) %>% scoring_rules[.] %>% map_lgl(`[[`, "all_pos") %>%
-    `!` %>% which(.) %>% names(.) %>% scoring_rules[.] %>% map( ~ .x[-1]) %>%
-    map(function(lst){lst %>% imap(~ append(.x, list(pos = .y)))}) %>%
-    modify_depth(2, as.tibble)  %>%
-    modify_depth(2, gather, "data_col", "points", -pos) %>%
-    modify_depth(1, bind_rows) %>% bind_rows()
-
+    `!`
+  if(any(check_diff)){
+    diff_pos <- scoring_rules %>% map(names) %>% map(`==`, "all_pos") %>%
+      map_lgl(any) %>% scoring_rules[.] %>% map_lgl(`[[`, "all_pos") %>%
+      `!` %>% which(.) %>% names(.) %>% scoring_rules[.] %>%
+      map(list_modify, all_pos = NULL) %>%
+      map(function(lst){lst %>% imap(~ append(.x, list(pos = .y)))}) %>%
+      modify_depth(2, as.tibble)  %>%
+      modify_depth(2, gather, "data_col", "points", -pos) %>%
+      modify_depth(1, bind_rows) %>% bind_rows()
+  } else {
+    diff_pos <- tibble()
+  }
   return(bind_rows(one_pos, mult_pos, diff_pos))
 }
 

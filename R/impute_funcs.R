@@ -161,12 +161,22 @@ kick_impute <- function(kick_tbl){
     kick_tbl <- mutate(kick_tbl, fg_att = ifelse(!is.na(fg) & !is.na(fg_miss), fg + fg_miss, as.numeric(NA)))
   }
 
+
   # Imputing values for attempts and made, for both field goals and XP and
   # calulating the missed field goals and XP.
-  if(all(c("fg_att", "xp_att") %in% kick_cols)){
-    kicking <- kick_tbl %>% val_from_rate(fg, fg_att) %>%
+  if("fg_att" %in% kick_cols){
+    kicking <- kick_tbl %>% val_from_rate(fg, fg_att) %>% mutate(fg_miss = fg_att - fg)
+  } else {
+    kicking <- kick_tbl %>% select(id, data_src, fg)
+  }
+
+  if("xp_att" %in% kick_cols){
+    kicking <- kicking %>%
       inner_join(val_from_rate(kick_tbl, xp, xp_att), by = c("id", "data_src")) %>%
-      mutate(fg_miss = fg_att - fg, xp_miss = xp_att - xp)
+      mutate(xp_miss = xp_att - xp)
+  } else {
+    kicking <- kicking %>%
+      inner_join(select(kick_tbl, id, data_src, xp), by = c("id", "data_src"))
   }
 
   # Imputing values for field goals by distance.
@@ -214,7 +224,7 @@ kick_impute <- function(kick_tbl){
              fg_miss_2029 = fg_miss * fg_2029 / fg,
              fg_miss_3039 = fg_miss * fg_3039 / fg,
              fg_miss_4049 = fg_miss * fg_4049 / fg,
-             fg_miss_59 = fg_miss * fg_50 / fg
+             fg_miss_50 = fg_miss * fg_50 / fg
       )
   }
 

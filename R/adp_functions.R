@@ -311,3 +311,62 @@ ffc_draft <- function(format=c("standard", "ppr", "2qb", "dynasty", "rookie"),
 
 }
 
+
+
+#' @export
+get_adp2 <- function(sources = c("RTS", "CBS", "ESPN", "Yahoo", "NFL", "FFC"),
+                    type = c("ADP", "AAV")){
+  type <- match.arg(type)
+  sources <- match.arg(sources, several.ok = TRUE)
+
+  draft_type <- tolower(type)
+
+  if("CBS" %in% sources & type == "AAV")
+    sources <- setdiff(sources, "CBS")
+  if("FFC" %in% sources & type == "AAV")
+    sources <- setdiff(sources, "FFC")
+
+  draft_funs <- list(rts = rts_draft, cbs = cbs_draft, espn = espn_draft,
+                     yahoo = yahoo_draft, nfl = nfl_draft, ffc = ffc_draft)
+
+  draft_funs <- draft_funs[tolower(sources)]
+
+  draft_list <- draft_funs %>% map(formals) %>% map(names) %>%
+    map( ~ if(any(.x == "aav")){list(aav = type == "AAV")}else{list()} )
+
+
+  draft_list <- keep(draft_list, ~ nrow(.x) > 0)
+
+  draft_funs <- draft_funs[names(draft_list)]
+
+  draft_table <- draft_list[[1]][, c("id", draft_type)]
+
+  if(length(draft_funs) > 1)
+    for(src in 2:length(draft_funs)){
+      adp_suffix <- paste0("_", names(draft_funs)[(src-1):src])
+
+      draft_table <- full_join(draft_table, draft_list[[src]][, c("id", draft_type)],
+                               by = "id", suffix = adp_suffix)
+    }
+
+  if(any(names(draft_table) == draft_type)){
+    draft_col <- draft_type
+    names(draft_col) <- paste(draft_type, names(draft_funs)[length(draft_funs)], sep = "_")
+    draft_table <- rename(draft_table, !!!draft_col)
+  }
+
+  if(length(sources) > 1){
+    draft_table <- draft_table %>%
+      mutate(adp_avg = select(draft_table, matches(draft_type)) %>% rowMeans(na.rm = TRUE))
+
+    if(type == "ADP"){
+      draft_table <-  arrange(draft_table, adp_avg)
+    } else {
+      draft_table <-  arrange(draft_table, desc(adp_avg))
+    }
+  }
+
+  names(draft_table) <-  c("id", names(draft_list), "Avg")[1:length(draft_table)]
+
+  return(draft_table)
+}

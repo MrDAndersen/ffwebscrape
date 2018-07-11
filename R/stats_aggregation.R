@@ -33,7 +33,7 @@ stats_by_category <- function(data_results){
       map(bind_rows) %>% map(rm_dupe_rows) %>% map(impute_na_off)
 
     data_cat <- append(data_cat,
-                       map(list(misc = "^fum|^sac|^two", ret = "^ret" ),
+                       map(list(misc = "^games$|^fum|^sac|^two", ret = "^ret" ),
                            lapply, X = data_results, FUN = get_stat_cols) %>%
                          map(bind_rows) %>% map(rm_dupe_rows))
   }
