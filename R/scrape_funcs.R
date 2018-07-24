@@ -51,6 +51,7 @@ scrape_data <- function(
 #' @export
 scrape_source <- function(src, season, week, position){
   src_type <- intersect(c("html_source", "json_source", "xlsx_source"), class(src))
+  cat("Scraping", position, "projections from \n", src$get_url(season, week, position), "\n")
   src_res <- switch(src_type,
                     "html_source" = src$open_session(season, week, position)$scrape(),
                     src$scrape(season, week, position))

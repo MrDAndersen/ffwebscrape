@@ -83,3 +83,23 @@ match_players <- function(x){
 
   return(matched$id[match(x$tmp_id, matched$tmp_id)])
 }
+
+
+available_sources <- function(period = c("season", "week")){
+  pos_group <- paste0(period, "_pos")
+  projection_sources %>% map_lgl(~ length(.x[[pos_group]]) > 0) %>%
+    which(.) %>% names()
+}
+
+available_position <- function(period = c("season", "week"), src = NULL){
+  pos_group <- paste0(period, "_pos")
+  if(is.null(src))
+    src <- available_sources(period)
+  else
+    src <- intersect(available_sources(period), src)
+
+  projection_sources[src] %>% map(`[[`, pos_group) %>% reduce(union)
+
+}
+
+

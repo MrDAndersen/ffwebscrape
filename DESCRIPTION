@@ -19,6 +19,7 @@ Collate:
     'impute_funcs.R'
     'make_scoring.R'
     'recode_vars.R'
+    'schedule_data.R'
     'scoring_rules.R'
     'scrape_ecr.R'
     'scrape_funcs.R'
