@@ -36,7 +36,7 @@ season the user would run:
 ```
 my_scrape <- scrape_data(src = c("CBS", "ESPN", "Yahoo"), 
                          pos = c("QB", "RB", "WR", "TE", "DST"),
-                         season = 2018 week = 0)
+                         season = 2018, week = 0)
 ```
 
 `my_scrape` will be a list of tibbles, one for each positon scraped, which contains
