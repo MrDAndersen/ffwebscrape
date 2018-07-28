@@ -29,7 +29,7 @@ file in the `data-raw` directory has all the individual sources defined and runn
 that script will re-create the `projections_sources` object for the package
 
 ## Scraping data
-THe main function for scraping data is `scrape_data`. This function will pull data
+The main function for scraping data is `scrape_data`. This function will pull data
 from the sources specified, for the positions specified in the season and week specificed.
 To pull data for QBs, RBs, WRs, TEs and DSTs from CBS, ESPN and Yahoo for the 2018
 season the user would run:
