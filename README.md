@@ -9,7 +9,7 @@ of creating code.
 
 ## Installation
 Intallation of the `ffwebscrape` package can be done directly from github:
-`devtools::install_github("MrDAnderse/ffwebscrape")`
+`devtools::install_github("MrDAndersen/ffwebscrape")`
 
 ## Projection sources
 The following sources are available for scraping:
