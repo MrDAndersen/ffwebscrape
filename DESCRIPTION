@@ -14,6 +14,7 @@ RoxygenNote: 6.0.1
 Collate:
     'adp_functions.R'
     'calc_projections.R'
+    'custom_scoring.R'
     'ffwebscrape.R'
     'helper_funcs.R'
     'impute_funcs.R'
