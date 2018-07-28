@@ -7,6 +7,11 @@ relies heavily on the vocabulary from the `tidyverse` and users will better be
 able to use the package if they familiarize themselves with the `tidyverse` way 
 of creating code.
 
+## Installation
+Intallation of the `ffwebscrape` package can be done directly from github:
+`devtools::install_github("MrDAnderse/ffwebscrape")`
+
+## Projection sources
 The following sources are available for scraping:
 
 * For seasonal data: CBS, ESPN, FantasyData, FantasyPros, FantasySharks, FFToday, 
@@ -17,7 +22,6 @@ FleaFlicker, NumberFire, Yahoo, FantasyFootballNerd, NFL
 While the scrape functions allows the user to specify season and week, scraping
 historical periods will not be successful.
 
-## Projection sources
 Projection sources are defined as `R6` classes and the `projection_sources` object
 is a list containing the projection sources defined in the pacakge. Review the
 `source_classes.R` file to see how these classes are defined and the `source_configs.R`
