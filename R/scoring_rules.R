@@ -1,3 +1,7 @@
+#' Default scoring rules for the calculations
+#'
+#' See \code{vignette("scoring_settings")} on how to define custom scoring settings.
+#' @export
 scoring <- list(
   pass = list(
     pass_att = 0, pass_comp = 0, pass_inc = 0, pass_yds = 0.04, pass_tds = 4,

@@ -10,13 +10,15 @@ projections_table(data_result, scoring_rules = NULL, src_weights = NULL,
 \arguments{
 \item{data_result}{An output from the \link{scrape_data} function}
 
-\item{scoring_rules}{The scoring rules to be used for calculations}
+\item{scoring_rules}{The scoring rules to be used for calculations. See
+\code{vignette("scoring_settings")} on how to define custom scoring settings.
+If omitted then default \link{scoring} settings will be used.}
 
-\item{src_weights}{The weights for each source to be used in calculations. If
-omitted then \link{default_weights} will be used}
+\item{src_weights}{A named vector defining the weights for each source to be
+used in calculations. If omitted then \link{default_weights} will be used.}
 
-\item{vor_baseline}{The baseline to use for VOR calculations. If omitted then
-the \link{default_baseline} will be used}
+\item{vor_baseline}{A named vector defineing the baseline to use for VOR
+calculations. If omitted then the \link{default_baseline} will be used.}
 
 \item{tier_thresholds}{The threshold values to be used when determining tiers.
 If omitted then the \link{default_threshold} will be used.}

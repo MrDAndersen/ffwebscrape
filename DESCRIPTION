@@ -5,13 +5,13 @@ Version: 0.1.0
 Author: Dennis Andersen
 Maintainer: Dennis Andersen <andersen.dennis@outlook.com>
 Description: Scrapes data from multiple public sources of data and compiles into one dataset.
-License: What license is it under?
+License: GPL
 Encoding: UTF-8
 LazyData: true
 Imports: R6
 Depends: tidyverse, rvest, httr, readxl, janitor, glue, Hmisc
 RoxygenNote: 6.0.1
-Collate: 
+Collate:
     'adp_functions.R'
     'calc_projections.R'
     'ffwebscrape.R'
@@ -25,3 +25,6 @@ Collate:
     'scrape_funcs.R'
     'source_classes.R'
     'stats_aggregation.R'
+Suggests: knitr,
+    rmarkdown
+VignetteBuilder: knitr

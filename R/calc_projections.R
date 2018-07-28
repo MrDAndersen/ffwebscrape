@@ -353,11 +353,13 @@ set_tiers <- function(data_tbl, d_threshold = NULL, src_points){
 #' points, confidence intervals, standard deviation for points, and if seasonal
 #' data also the VOR values
 #' @param data_result An output from the \link{scrape_data} function
-#' @param scoring_rules The scoring rules to be used for calculations
-#' @param src_weights The weights for each source to be used in calculations. If
-#' omitted then \link{default_weights} will be used
-#' @param vor_baseline The baseline to use for VOR calculations. If omitted then
-#' the \link{default_baseline} will be used
+#' @param scoring_rules The scoring rules to be used for calculations. See
+#' \code{vignette("scoring_settings")} on how to define custom scoring settings.
+#' If omitted then default \link{scoring} settings will be used.
+#' @param src_weights A named vector defining the weights for each source to be
+#' used in calculations. If omitted then \link{default_weights} will be used.
+#' @param vor_baseline A named vector defineing the baseline to use for VOR
+#' calculations. If omitted then the \link{default_baseline} will be used.
 #' @param tier_thresholds The threshold values to be used when determining tiers.
 #' If omitted then the \link{default_threshold} will be used.
 #' @export
