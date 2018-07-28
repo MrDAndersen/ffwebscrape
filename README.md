@@ -66,3 +66,12 @@ ECR data is available for the risk calculation.
 The `add_adp` and `add_aav` allows to specify sources for ADP and AAV. See `?add_adp`,
 and `?add_aav` for details.
 
+## Player data
+Player data is pulled from MFL when the package loads and stored in the `player_table`
+object. To add player data to the projections table use `add_player_info`, which adds
+the player names, teams, positions, age, and experience to the data set.
+```
+my_projections <- my_projections %>% add_player_info()
+```
+
+
