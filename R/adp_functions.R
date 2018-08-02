@@ -150,6 +150,40 @@ yahoo_draft <- function(aav = FALSE){
   return(yahoo_adp)
 }
 
+
+p_url <- function(p, season = 2018, weekNo = 0){
+  nfl_base <- "http://api.fantasy.nfl.com/v1/players/researchinfo"
+  nfl_query <- list(season = season, week = weekNo, count = 1000, format = "json", position = p)
+  u <- parse_url(nfl_base)
+  u$query <- nfl_query
+  build_url(u)
+}
+
+url_data <- function(u){
+  p <- 0
+  out_tbl <- tibble()
+  repeat{
+    uq <- parse_url(u)$query
+    uq$offset <- p
+    u <- modify_url(u, query = uq)
+
+    u_data <- content(GET(u))
+    if(length(u_data$players) == 0)
+      break
+    else {
+      p_data <- u_data$players %>%
+        map(`[`, c("id", "esbid")) %>%
+        modify_depth(2, ~ if_else(is.null(.x), as.character(NA), .x )) %>%
+        map(as.tibble) %>%
+        bind_rows() %>%
+        rename(nfl_id = id)
+      out_tbl <- bind_rows(out_tbl, p_data)
+    }
+    p <- p + 1000
+  }
+  out_tbl
+}
+
 #' Get ADP/AAV data from NFL
 #'
 #' This function scrapes ADP or AAV data from NFL
@@ -158,20 +192,21 @@ yahoo_draft <- function(aav = FALSE){
 nfl_draft <- function(){
 
   api_url <- "http://api.fantasy.nfl.com/v1/players/userdraftranks?format=json&count=100&offset=0"
-  draft_tbl <- data.frame()
+  draft_tbl <- tibble()
 
   repeat({
-    nfl_tbl <- bind_rows(lapply(content(GET(api_url))$players, function(x){
-      x <- x[!sapply(x, is.null)]
-      x <- lapply(x, as.character)
-      data.frame(x,  stringsAsFactors = FALSE)
-    }))
+    nfl_tbl <- content(GET(api_url))$players %>%
+      map(`[`, c("esbid", "rank", "aav", "teamAbbr", "position")) %>%
+      modify_depth(2, ~ if_else(is.null(.x), as.character(NA), .x )) %>%
+      map(as.tibble) %>% bind_rows()
+    # nfl_tbl <- bind_rows(lapply(content(GET(api_url))$players, function(x){
+    #   x <- x[!sapply(x, is.null)]
+    #   x <- lapply(x, as.character)
+    #   data.frame(x,  stringsAsFactors = FALSE)
+    # }))
 
     if(nrow(nfl_tbl) == 0)
       break
-
-    nfl_tbl <- nfl_tbl %>% rename(adp = rank, team = teamAbbr) %>%
-      add_column(nfl_id = nfl_esbid$nfl_id[match(nfl_tbl$esbid, nfl_esbid$esbid)], .before = 1)
 
     draft_tbl <- bind_rows(draft_tbl, nfl_tbl)
     api_url <- parse_url(api_url)
@@ -183,10 +218,19 @@ nfl_draft <- function(){
 
   })
 
+
   if(nrow(draft_tbl) > 0){
+
+    draft_pos <- unique(draft_tbl$position)
+
+    p_esbid <- draft_pos %>% map(p_url) %>% map(url_data) %>% bind_rows()
+
+    draft_tbl <- draft_tbl %>% rename(adp = rank, team = teamAbbr) %>%
+      add_column(nfl_id = p_esbid$nfl_id[match(draft_tbl$esbid, p_esbid$esbid)], .before = 1)
+
     draft_tbl <- draft_tbl %>% rowwise() %>%
-      mutate(nfl_id = ifelse(is.na(nfl_id), nflTeam.id[which(nflTeam.abb == team)], nfl_id)) %>%
-      as.data.frame()
+      mutate(nfl_id = ifelse(position == "DEF", nflTeam.id[which(nflTeam.abb == team)], nfl_id)) %>%
+      ungroup()
 
     draft_tbl <- draft_tbl %>%
       add_column(id = id_col(draft_tbl$nfl_id, "nfl_id"), .before = 1) %>%
@@ -194,6 +238,9 @@ nfl_draft <- function(){
   }
   return(draft_tbl)
 }
+
+
+
 
 
 #' Get ADP/AAV data from multple sources
