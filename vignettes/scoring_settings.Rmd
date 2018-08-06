@@ -25,12 +25,12 @@ variables.
 The scoring settings are defined as a list of lists with the first level in the 
 list being the variable groups defined above. Within `rush`, `rec`, `misc`, and 
 `idp` settings can be specified by position. `ptsBracket` is a special case that
-is described seprarately, but each of the variable groups are also list, The list
-elemensts are named by the variables used in the scoring and the values is the 
+is described seprarately, but each of the variable groups is also a list. The list
+elements are named by the variables used in the scoring and the values is the 
 multiplier used. So if the scoring calls for 4 points per passing touchdown, then
 the `pass` group will have `pass_tds = 4` as an element. The  `rush`, `rec`, 
 `misc`, and `idp`, all have a `all_pos` element which is `TRUE` if the settings
-within the group are valid for all positions. 
+within the group are the same for all positions. 
 
 ## Setting scoring by position
 If scoring settings differ by position within one or more of the `rush`, `rec`, 
@@ -85,7 +85,7 @@ pts_bracket = list(
 ```
 
 ## Default scoring settings
-If scoring settings are not specified when calclulating the projected points, the
+If scoring settings are not specified when calculating the projected points, the
 package will use the following default settings:
 ```
 list(

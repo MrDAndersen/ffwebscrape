@@ -119,10 +119,10 @@ source_points <- function(data_result, scoring_rules){
 # Generate weights from a source points table if no weights are given
 weights_from_src <- function(src_pts, weights = NULL){
   if(is.null(weights)){
-    src_weights <- default_weights[unique(src_pts$data_src)]
+    weights <- default_weights[unique(src_pts$data_src)]
   }
 
-  src_weights %>% as.tibble() %>%
+  weights %>% as.tibble() %>%
     `names<-`("weight") %>% rownames_to_column('data_src')
 }
 
@@ -385,7 +385,7 @@ projections_table <- function(data_result, scoring_rules = NULL, src_weights = N
                                list(data_result = data_result, src_weights = src_weights)))
 
   pts_uncertainty <- invoke_map(list(points_sd, confidence_interval),
-                                src_pts = data_list$src_pts, weights = NULL) %>%
+                                src_pts = data_list$src_pts, weights = src_weights) %>%
     reduce(inner_join, by = c("pos", "id","avg_type"))
 
   out_df<- data_list$agg_stats %>%

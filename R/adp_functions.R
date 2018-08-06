@@ -199,11 +199,6 @@ nfl_draft <- function(){
       map(`[`, c("esbid", "rank", "aav", "teamAbbr", "position")) %>%
       modify_depth(2, ~ if_else(is.null(.x), as.character(NA), .x )) %>%
       map(as.tibble) %>% bind_rows()
-    # nfl_tbl <- bind_rows(lapply(content(GET(api_url))$players, function(x){
-    #   x <- x[!sapply(x, is.null)]
-    #   x <- lapply(x, as.character)
-    #   data.frame(x,  stringsAsFactors = FALSE)
-    # }))
 
     if(nrow(nfl_tbl) == 0)
       break

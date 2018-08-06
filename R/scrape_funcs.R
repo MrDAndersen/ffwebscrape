@@ -22,6 +22,8 @@ scrape_data <- function(
   pos = c("QB", "RB", "WR", "TE", "K", "DST", "DL", "LB", "DB"),
   season = 2018, week = 0){
 
+  if(missing(week))
+    week <- 0
   src <- match.arg(src, several.ok = TRUE)
   pos <- match.arg(pos, several.ok = TRUE)
 
@@ -39,6 +41,14 @@ scrape_data <- function(
       src_data[[p]] <- bind_rows(list(src_data[[p]], idp_data[[p]]))
     }
   }
+
+  src_data <- map(src_data,
+                  ~ {if(any(names(.x) == "site_src")){
+                       mutate(.x, data_src = if_else(is.na(site_src), data_src, paste(data_src, site_src, sep = ": ")))
+                  } else {
+                      .x
+                    }}
+  )
 
   src_data <- src_data[setdiff(pos, "IDP")]
   attr(src_data, "season") <- season

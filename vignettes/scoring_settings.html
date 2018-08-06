@@ -11,7 +11,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 
-<meta name="date" content="2018-07-28" />
+<meta name="date" content="2018-08-05" />
 
 <title>Scoring Settings</title>
 
@@ -30,7 +30,7 @@
 
 
 <h1 class="title toc-ignore">Scoring Settings</h1>
-<h4 class="date"><em>2018-07-28</em></h4>
+<h4 class="date"><em>2018-08-05</em></h4>
 
 
 
@@ -47,7 +47,7 @@
 <li><em>idp</em>: Variables for individual defensive players</li>
 <li><em>pts_bracket</em>: Defining thresholds for points allowed for DSTs</li>
 </ul>
-<p>The scoring settings are defined as a list of lists with the first level in the list being the variable groups defined above. Within <code>rush</code>, <code>rec</code>, <code>misc</code>, and <code>idp</code> settings can be specified by position. <code>ptsBracket</code> is a special case that is described seprarately, but each of the variable groups are also list, The list elemensts are named by the variables used in the scoring and the values is the multiplier used. So if the scoring calls for 4 points per passing touchdown, then the <code>pass</code> group will have <code>pass_tds = 4</code> as an element. The <code>rush</code>, <code>rec</code>, <code>misc</code>, and <code>idp</code>, all have a <code>all_pos</code> element which is <code>TRUE</code> if the settings within the group are valid for all positions.</p>
+<p>The scoring settings are defined as a list of lists with the first level in the list being the variable groups defined above. Within <code>rush</code>, <code>rec</code>, <code>misc</code>, and <code>idp</code> settings can be specified by position. <code>ptsBracket</code> is a special case that is described seprarately, but each of the variable groups is also a list. The list elements are named by the variables used in the scoring and the values is the multiplier used. So if the scoring calls for 4 points per passing touchdown, then the <code>pass</code> group will have <code>pass_tds = 4</code> as an element. The <code>rush</code>, <code>rec</code>, <code>misc</code>, and <code>idp</code>, all have a <code>all_pos</code> element which is <code>TRUE</code> if the settings within the group are the same for all positions.</p>
 </div>
 <div id="setting-scoring-by-position" class="section level2">
 <h2>Setting scoring by position</h2>
@@ -83,7 +83,7 @@ Over 34 Pts Allowed = -4 points</code></pre>
 </div>
 <div id="default-scoring-settings" class="section level2">
 <h2>Default scoring settings</h2>
-<p>If scoring settings are not specified when calclulating the projected points, the package will use the following default settings:</p>
+<p>If scoring settings are not specified when calculating the projected points, the package will use the following default settings:</p>
 <pre><code>list(
   pass = list(
     pass_att = 0, pass_comp = 0, pass_inc = 0, pass_yds = 0.04, pass_tds = 4,
