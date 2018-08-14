@@ -4,6 +4,8 @@ Title: Scrape Data For Fantasy Football
 Version: 0.1.0
 Author: Dennis Andersen
 Maintainer: Dennis Andersen <andersen.dennis@outlook.com>
+Authors@R: c(person("Dennis", "Andersen", email = "andersen.dennis@outlook.com",
+                  role = c("aut", "cre")))
 Description: Scrapes data from multiple public sources of data and compiles into one dataset.
 License: GPL
 Encoding: UTF-8

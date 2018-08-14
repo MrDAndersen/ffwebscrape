@@ -1,7 +1,7 @@
 # ffwebscrape
 
 This package allows users to scrape projected stats from several sites that have
-publicly available projections. Once data is scraped the use can then use functions
+publicly available projections. Once data is scraped the user can then use functions
 within the package to calculate projected points and produce rankings. The package
 relies heavily on the vocabulary from the `tidyverse` and users will better be
 able to use the package if they familiarize themselves with the `tidyverse` way 
